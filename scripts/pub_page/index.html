@@ -61,7 +61,7 @@
       
       #map_div { width: 100%; height: 400px; margin: 0 auto 40px auto; border-radius: 6px; overflow: hidden; border: 1px solid #e1e4e8; }
       
-      /* --- CSS CARD PUBLICACAO (Redesenhado para Flexbox) --- */
+      /* --- CSS CARD PUBLICACAO (Flexbox com Z-Index corrigido) --- */
       .pub-card { 
           background: white; 
           border-radius: 6px; 
@@ -70,20 +70,24 @@
           padding: 25px; 
           border: 1px solid #f4ecf7; 
           
-          /* MUDANÇA: Usando Flexbox em vez de Grid para evitar corte de conteúdo */
+          /* Layout Flex */
           display: flex; 
-          flex-wrap: wrap; /* Se a tela for pequena, quebra linha */
+          flex-wrap: wrap; 
           justify-content: space-between;
           align-items: center; 
           
-          /* CRÍTICO PARA O PLUMX */
+          /* Permitir popup */
           overflow: visible !important; 
           position: relative;
           z-index: 1;
+          transition: z-index 0s, box-shadow 0.2s;
       }
+      
+      /* Quando passar o mouse, traz o card para frente de tudo */
+      .pub-card:hover { z-index: 1000; box-shadow: 0 8px 16px rgba(0,0,0,0.1); border-color: #d2b4de; }
 
       .pub-content { 
-          flex: 1 1 60%; /* Ocupa 60% ou mais */
+          flex: 1 1 50%; 
           min-width: 300px;
           font-size: 16px; 
           line-height: 1.6; 
@@ -105,9 +109,9 @@
           border-left: 1px solid #eee; 
           padding-left: 20px; 
           
-          /* CRÍTICO: Z-index alto para o popup flutuar acima de tudo */
+          overflow: visible !important;
           position: relative;
-          z-index: 9999;
+          z-index: 10;
       }
 
       @media (max-width: 850px) { 
@@ -116,9 +120,9 @@
       }
       
       /* Styles para Badges de Métricas */
-      .plumx-plum-print-popup { display: inline-block !important; height: 20px; min-width: 50px; }
+      .plumx-plum-print-popup { display: inline-block !important; height: 20px; min-width: 50px; overflow: visible !important; }
       .__dimensions_badge_embed__ { display: inline-block; margin: 0; }
-      .altmetric-embed { display: inline-block; margin: 0; min-width: 50px; pointer-events: none; cursor: default; } 
+      .altmetric-embed { display: inline-block; margin: 0; min-width: 50px; } 
       
       .error-box { background: #ffebee; color: #c62828; padding: 20px; border: 1px solid #ef9a9a; border-radius: 5px; text-align: center; margin-top: 20px; }
       .loading-msg { text-align:center; padding-top:40%; color:#ccc; }
@@ -169,10 +173,8 @@
     </div>
 
     <script>
-      // Carrega Google Charts assincronamente
       google.charts.load('current', {'packages':['geochart']});
 
-      // --- ESTADO GLOBAL ---
       var globalCtx = { 
           mapData: null, 
           rawWordCloudData: null,
@@ -185,7 +187,6 @@
           odsData: []      
       };
 
-      // --- TEXTOS UI ---
       const translations = {
           pt: {
               title: "Minhas Publicações",
@@ -197,7 +198,11 @@
               loading: "Carregando...",
               filterReset: "Limpar Filtro",
               noPubs: "Nenhuma publicação encontrada para este filtro.",
-              filterActive: "Filtrado por: "
+              filterActive: "Filtrado por: ",
+              badgeInt: "Internacional",
+              badgePeer: "Revisado por Pares",
+              actionAccess: "Acessar",
+              defaultLink: "Link"
           },
           fr: {
               title: "Mes Publications",
@@ -209,7 +214,11 @@
               loading: "Chargement...",
               filterReset: "Effacer le filtre",
               noPubs: "Aucune publication trouvée.",
-              filterActive: "Filtré par : "
+              filterActive: "Filtré par : ",
+              badgeInt: "International",
+              badgePeer: "Comité de lecture",
+              actionAccess: "Accéder",
+              defaultLink: "Lien"
           },
           en: {
               title: "My Publications",
@@ -221,7 +230,11 @@
               loading: "Loading...",
               filterReset: "Clear Filter",
               noPubs: "No publications found.",
-              filterActive: "Filtered by: "
+              filterActive: "Filtered by: ",
+              badgeInt: "International",
+              badgePeer: "Peer Reviewed",
+              actionAccess: "Access",
+              defaultLink: "Link"
           }
       };
 
@@ -329,7 +342,6 @@
           globalCtx.finalWordCloudData = finalArray.slice(0, 60);
       }
 
-      // --- RENDERIZAÇÃO ---
       function renderContent() {
           var t = translations[globalCtx.currentLang];
           var container = document.getElementById('content');
@@ -411,31 +423,77 @@
                     var badgeRowHtml = '<div class="badges-row">';
                     
                     var cleanDoi = "";
-                    if (pub.doi) {
-                        var raw = String(pub.doi).trim();
-                        raw = raw.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, "");
-                        raw = raw.replace(/^doi:/i, "");
-                        raw = raw.trim();
-                        if (raw.startsWith('10.') || raw.match(/^10\./)) cleanDoi = raw;
+                    var arxivId = "";
+                    
+                    var rawArxiv = String(pub.arxiv || "").trim();
+                    var rawDoi = String(pub.doi || "").trim();
+                    
+                    var arxivPattern = /(\d{4}\.\d{4,5})/;
+
+                    var matchArxivCol = rawArxiv.match(arxivPattern);
+                    if (matchArxivCol) {
+                        arxivId = matchArxivCol[1];
                     }
 
-                    if (pub.international && String(pub.international).toLowerCase() === 'sim') badgeRowHtml += createShieldHtml("#", "Internacional", "orange", "googleearth");
-                    if (cleanDoi) badgeRowHtml += createShieldHtml("https://doi.org/" + cleanDoi, "DOI", "005a9c", "doi");
-                    // Links dinâmicos
+                    var potentialDoi = rawDoi.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, "")
+                                             .replace(/^doi:/i, "")
+                                             .trim();
+                    
+                    var isGenuineDoi = potentialDoi.startsWith('10.');
+
+                    if (!arxivId) {
+                        if (!isGenuineDoi) {
+                            var matchDoiCol = rawDoi.match(arxivPattern);
+                            if (matchDoiCol) {
+                                arxivId = matchDoiCol[1];
+                            }
+                        }
+                    }
+
+                    if (isGenuineDoi && !arxivId) {
+                        cleanDoi = potentialDoi;
+                    }
+                    
+                    // --- Badge Internacional ---
+                    if (pub.international && String(pub.international).toLowerCase() === 'sim') {
+                        badgeRowHtml += createShieldHtml("#", t.badgeInt, "orange", "googleearth", true);
+                    }
+
+                    if (arxivId) {
+                        badgeRowHtml += createShieldHtml("https://arxiv.org/abs/" + arxivId, "arXiv", "B31B1B", "arxiv");
+                    } 
+                    else if (cleanDoi) {
+                        badgeRowHtml += createShieldHtml("https://doi.org/" + cleanDoi, "DOI", "005a9c", "doi");
+                    }
+                    
                     if (pub.link1) badgeRowHtml += createShieldHtml(pub.link1); 
                     if (pub.link2) badgeRowHtml += createShieldHtml(pub.link2); 
                     if (pub.link3) badgeRowHtml += createShieldHtml(pub.link3); 
                     if (pub.preprint) badgeRowHtml += createShieldHtml(pub.preprint, "Preprint", "blueviolet", "openaccess");
+                    
+                    // --- Badge Peer Reviewed ---
+                    if (pub.published) {
+                         badgeRowHtml += createShieldHtml("#", t.badgePeer, "2ea44f", "checkmark", true);
+                    }
+
                     badgeRowHtml += '</div>';
 
                     var contentHtml = '<div class="pub-content"><div class="pub-citation">' + pub.citation + '</div>' + badgeRowHtml + '</div>';
                     
                     var metricsHtml = '';
-                    if (cleanDoi) {
+                    var altmetricHtml = '';
+
+                    if (arxivId) {
+                        altmetricHtml = '<div class="altmetric-embed" data-badge-type="donut" data-badge-popover="right" data-arxiv-id="' + arxivId + '" data-hide-no-mentions="true"></div>';
+                    } else if (cleanDoi) {
+                        altmetricHtml = '<div class="altmetric-embed" data-badge-type="donut" data-badge-popover="right" data-doi="' + cleanDoi + '" data-hide-no-mentions="false"></div>';
+                    }
+
+                    if (cleanDoi || arxivId) {
                         metricsHtml = '<div class="metrics-container">' +
-                            '<div class="altmetric-embed" data-badge-type="donut" data-doi="' + cleanDoi + '" data-condensed="true" data-hide-no-mentions="true"></div>' +
-                            '<a href="https://plu.mx/plum/a/?doi=' + cleanDoi + '" class="plumx-plum-print-popup plum-bigben-theme" data-popup="top" data-hide-when-empty="true"></a>' +
-                            '<span class="__dimensions_badge_embed__" data-doi="' + cleanDoi + '" data-style="small_circle" data-hide-zero-citations="true"></span>' +
+                            altmetricHtml + 
+                            (cleanDoi ? '<a href="https://plu.mx/plum/a/?doi=' + cleanDoi + '" class="plumx-plum-print-popup plum-bigben-theme" data-popup="top" data-hide-when-empty="true"></a>' : '') +
+                            (cleanDoi ? '<span class="__dimensions_badge_embed__" data-doi="' + cleanDoi + '" data-style="small_circle" data-hide-zero-citations="true"></span>' : '') +
                         '</div>';
                     }
 
@@ -553,12 +611,16 @@
         }
       }
 
-      // --- NOVA FUNÇÃO DE SHIELD INTELIGENTE ---
-      function createShieldHtml(url, labelOverride, colorOverride, logoOverride) {
+      function createShieldHtml(url, labelOverride, colorOverride, logoOverride, isStatusBadge) {
           if (!url) return "";
           var u = url.toLowerCase();
           
-          var label = "Link";
+          // Pega a tradução para "Acessar" e para "Link" padrão
+          var t = translations[globalCtx.currentLang];
+          var actionText = t ? t.actionAccess : "Acessar";
+          var defaultLinkText = t ? t.defaultLink : "Link";
+          
+          var label = defaultLinkText;
           var color = "lightgrey"; 
           var logo = "link";       
 
@@ -593,10 +655,25 @@
           if (labelOverride) label = labelOverride;
           if (colorOverride) color = colorOverride;
           if (logoOverride) logo = logoOverride;
+          
+          var style = 'text-decoration:none; opacity:0.9; transition:opacity 0.2s;';
+          if (url === "#") style += ' pointer-events: none;'; 
 
-          return '<a href="' + url + '" target="_blank" style="text-decoration:none; opacity:0.9; transition:opacity 0.2s;">' +
-                 '<img src="https://img.shields.io/badge/' + encodeURIComponent(label) + '-Acessar-' + color + 
-                 '?style=flat-square&logo=' + logo + '&logoColor=white" ' +
+          var badgeSrc = "";
+          if (isStatusBadge) {
+              // Formato sem "Acessar": -Label-Cor
+              // Ex: -Internacional-Orange ou -Peer Reviewed-Green
+              badgeSrc = "https://img.shields.io/badge/-" + encodeURIComponent(label) + "-" + color + 
+                         "?style=flat-square&logo=" + logo + "&logoColor=white";
+          } else {
+              // Formato padrão traduzido: Label-Action-Cor
+              // Ex: GitHub-Access-Black (EN) ou GitHub-Accéder-Black (FR)
+              badgeSrc = "https://img.shields.io/badge/" + encodeURIComponent(label) + "-" + encodeURIComponent(actionText) + "-" + color + 
+                         "?style=flat-square&logo=" + logo + "&logoColor=white";
+          }
+
+          return '<a href="' + url + '" target="_blank" style="' + style + '">' +
+                 '<img src="' + badgeSrc + '" ' +
                  'alt="' + label + '" style="vertical-align:middle;" /></a>';
       }
 
