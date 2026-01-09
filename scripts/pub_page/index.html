@@ -1,0 +1,556 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <base target="_top">
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link rel="preconnect" href="https://cdn.anychart.com">
+    <link rel="preconnect" href="https://badge.dimensions.ai">
+
+    <link href="https://fonts.googleapis.com/css2?family=Bitter:ital,wght@0,300;0,400;0,600;1,400&family=Montserrat:wght@700&display=swap" rel="stylesheet">
+    
+    <script type="text/javascript" src="https://www.gstatic.com/charts/loader.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-core.min.js"></script>
+    <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-tag-cloud.min.js"></script>
+
+    <style>
+      /* --- CSS OTIMIZADO --- */
+      body { font-family: 'Bitter', serif; background-color: #fcfbfd; color: #333; max-width: 1100px; margin: 0 auto; padding: 20px; will-change: scroll-position; }
+      h1 { font-family: 'Montserrat', sans-serif; text-align: left; color: #4a235a; font-weight: 700; margin-bottom: 30px; font-size: 2.8em; letter-spacing: -1px; }
+      
+      .top-controls { display: flex; justify-content: flex-end; align-items: center; gap: 15px; margin-bottom: 10px; }
+      select.lang-select { padding: 5px 10px; border: 1px solid #d2b4de; border-radius: 4px; color: #4a235a; font-family: 'Montserrat', sans-serif; cursor: pointer; background: #fff; }
+      .filter-reset-btn { background-color: #d9534f; color: white; border: none; padding: 5px 12px; border-radius: 15px; cursor: pointer; font-size: 0.8em; display: none; font-family: 'Montserrat', sans-serif; }
+      .filter-reset-btn:hover { background-color: #c9302c; }
+
+      .floating-btn { position: fixed; bottom: 30px; left: 30px; width: 50px; height: 50px; background-color: #8e44ad; color: white; border-radius: 50%; text-align: center; line-height: 50px; font-size: 24px; box-shadow: 0 4px 10px rgba(0,0,0,0.3); cursor: pointer; z-index: 9999; transition: opacity 0.3s, transform 0.3s; opacity: 0; pointer-events: none; text-decoration: none; }
+      .floating-btn.visible { opacity: 1; pointer-events: auto; }
+      .floating-btn:hover { background-color: #4a235a; transform: translateY(-3px); }
+
+      .intro-wrapper { display: flex; flex-direction: row; align-items: center; justify-content: space-between; gap: 40px; margin-bottom: 30px; background: white; padding: 30px; border-radius: 8px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); border: 1px solid #f4ecf7; }
+      .intro-text-col { flex: 1; font-size: 1.1em; line-height: 1.6; color: #555; text-align: justify; }
+      .intro-cloud-col { flex: 1; height: 300px; border-left: 1px solid #eee; padding-left: 20px; position: relative; }
+      @media (max-width: 768px) { .intro-wrapper { flex-direction: column; } .intro-cloud-col { border-left: none; width: 100%; height: 250px; padding-left: 0; border-top: 1px solid #eee; padding-top: 20px;} }
+
+      /* Perfil */
+      .profile-wrapper { display: flex; flex-direction: row; gap: 30px; margin-bottom: 20px; align-items: center; background-color: #fcfbfd; }
+      .stats-side { flex: 1; display: flex; flex-wrap: wrap; gap: 15px; justify-content: flex-start; }
+      .stat-box { background: white; border: 1px solid #d2b4de; border-radius: 8px; padding: 10px 20px; text-align: center; min-width: 100px; box-shadow: 0 2px 4px rgba(74, 35, 90, 0.1); transition: transform 0.2s; flex-grow: 1; }
+      .stat-box:hover { transform: translateY(-2px); }
+      .stat-value { font-size: 1.8em; font-weight: bold; color: #8e44ad; display: block; font-family: 'Montserrat', sans-serif; }
+      .stat-label { font-size: 0.85em; color: #666; text-transform: uppercase; letter-spacing: 0.5px; }
+
+      .ods-side { flex: 1; border-left: 2px solid #e1e4e8; padding-left: 30px; display: flex; flex-direction: column; justify-content: center; }
+      .ods-header { font-family: 'Montserrat', sans-serif; font-size: 0.9em; color: #666; text-transform: uppercase; margin-bottom: 10px; font-weight: bold; letter-spacing: 0.5px; }
+      .ods-grid { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+      .ods-icon { width: 70px; height: 70px; border-radius: 10px; transition: transform 0.2s; box-shadow: 0 2px 5px rgba(0,0,0,0.1); object-fit: cover; background: #fff; }
+      .ods-icon:hover { transform: scale(1.1); z-index: 10; }
+      @media (max-width: 800px) { .profile-wrapper { flex-direction: column; } .ods-side { border-left: none; padding-left: 0; width: 100%; border-top: 1px solid #eee; padding-top: 20px;} .stats-side { width: 100%; justify-content: center; } }
+
+      /* Navegação */
+      .nav-menu { text-align: center; margin-bottom: 40px; padding: 15px; border-top: 1px solid #eee; border-bottom: 1px solid #eee; background-color: #fff; position: sticky; top: 0; z-index: 100; box-shadow: 0 2px 5px rgba(0,0,0,0.05); }
+      .nav-item { display: inline-block; margin: 5px 5px; color: #6c3483; text-decoration: none; font-size: 14px; border: 1px solid #d2b4de; padding: 6px 15px; border-radius: 20px; transition: all 0.2s; background: white; cursor: pointer; }
+      .nav-item:hover { background: #8e44ad; color: white; border-color: #8e44ad; }
+
+      h2.section-title { border-bottom: 2px solid #8e44ad; padding-bottom: 5px; margin-top: 80px; color: #4a235a; font-family: 'Montserrat', sans-serif; font-size: 22px; font-weight: 600; display: flex; justify-content: space-between; align-items: flex-end; scroll-margin-top: 80px; }
+      .back-to-top-text { font-size: 12px; color: #999; font-family: 'Bitter', serif; text-decoration: none; font-weight: normal; margin-left: 10px; cursor: pointer; }
+      .back-to-top-text:hover { color: #8e44ad; }
+      
+      #map_div { width: 100%; height: 400px; margin: 0 auto 40px auto; border-radius: 6px; overflow: hidden; border: 1px solid #e1e4e8; }
+      
+      /* Card Publicação */
+      .pub-card { background: white; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 20px; padding: 25px; display: grid; grid-template-columns: 1fr auto; gap: 20px; border: 1px solid #f4ecf7; align-items: center; contain: content; /* Otimização de renderização */ }
+      @media (max-width: 850px) { .pub-card { grid-template-columns: 1fr; } .metrics-container { justify-content: flex-start; border-left: none; padding-left: 0; } }
+      .pub-content { font-size: 16px; line-height: 1.6; color: #2c3e50; }
+      
+      .badges-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-height: 20px; }
+      .badges-row img { height: 20px; display: block; } /* Define altura fixa para evitar Layout Shift */
+      
+      .metrics-container { display: flex; flex-direction: row; gap: 15px; border-left: 1px solid #eee; padding-left: 20px; min-width: 280px; justify-content: flex-end; align-items: center; }
+      
+      /* Styles para Badges */
+      .plumx-plum-print-popup { display: inline-block !important; height: 20px; }
+      .__dimensions_badge_embed__ { display: inline-block; margin: 0; }
+      .altmetric-embed { display: inline-block; margin: 0; min-width: 50px; pointer-events: none; cursor: default; } 
+      
+      .error-box { background: #ffebee; color: #c62828; padding: 20px; border: 1px solid #ef9a9a; border-radius: 5px; text-align: center; margin-top: 20px; }
+      .loading-msg { text-align:center; padding-top:40%; color:#ccc; }
+    </style>
+  </head>
+  <body>
+    <div id="top-anchor" style="position:absolute; top:0;"></div>
+    
+    <div class="top-controls">
+        <button id="resetFilterBtn" class="filter-reset-btn" onclick="resetFilter()">Limpar Filtro</button>
+        <select id="languageSelect" class="lang-select" onchange="changeLanguage()">
+            <option value="pt" selected>🇧🇷 Português</option>
+            <option value="fr">🇨🇦 Français</option>
+            <option value="en">🇺🇸 English</option>
+        </select>
+    </div>
+
+    <a onclick="scrollToId('top-anchor')" class="floating-btn" id="floatBtn" title="Voltar ao topo">↑</a>
+    
+    <h1 id="page-title">Minhas Publicações</h1>
+
+    <div class="intro-wrapper">
+        <div class="intro-text-col">
+            <h3 id="intro-title" style="margin-top:0; color:#4a235a; font-family:'Montserrat',sans-serif;">Sobre a Pesquisa</h3>
+            <p id="intro-desc">Carregando introdução...</p>
+        </div>
+        <div class="intro-cloud-col" id="cloud_div">
+            <div id="cloud-loading" class="loading-msg">Carregando...</div>
+        </div>
+    </div>
+    
+    <div class="profile-wrapper" id="profile-area">
+        <div class="stats-side" id="profile-stats"></div>
+        <div class="ods-side" id="ods-section">
+            <div class="ods-header" id="ods-title">Contribuição para os ODS (ONU)</div>
+            <div class="ods-grid" id="ods-container">
+                <span style="color:#999; font-size:12px;">Carregando...</span>
+            </div>
+        </div>
+    </div>
+
+    <div id="nav-menu" class="nav-menu"><span style="color:#ccc; font-size:0.9em;">Carregando menu...</span></div>
+    <div id="content"></div>
+
+    <div id="map-section-container" style="display:none;">
+        <h2 id="section-map" class="section-title"><span id="map-title-text">Trabalhos em colaboração</span> <span class="back-to-top-text" onclick="scrollToId('top-anchor')">↑ Topo</span></h2>
+        <div id="map_div"></div>
+    </div>
+
+    <script>
+      // Carrega Google Charts assincronamente
+      google.charts.load('current', {'packages':['geochart']});
+
+      // --- ESTADO GLOBAL ---
+      var globalCtx = { 
+          mapData: null, 
+          rawWordCloudData: null,
+          finalWordCloudData: null,
+          pubData: null, 
+          currentLang: 'pt',
+          activeFilter: null,
+          categoryTranslations: {},
+          profileData: [], // CORREÇÃO: Adicionado ao estado global
+          odsData: []      // CORREÇÃO: Adicionado ao estado global
+      };
+
+      // --- TEXTOS UI ---
+      const translations = {
+          pt: {
+              title: "Minhas Publicações",
+              introTitle: "Sobre a Pesquisa",
+              introDesc: "Bem-vindo ao meu portfólio acadêmico. Clique nas palavras da nuvem para filtrar os trabalhos por tema. As palavras-chave combinam termos definidos manualmente e extraídos dos títulos.",
+              odsTitle: "Contribuição para os ODS (ONU)",
+              collabTitle: "Trabalhos em colaboração",
+              backTop: "↑ Voltar ao topo",
+              loading: "Carregando...",
+              filterReset: "Limpar Filtro",
+              noPubs: "Nenhuma publicação encontrada para este filtro.",
+              filterActive: "Filtrado por: "
+          },
+          fr: {
+              title: "Mes Publications",
+              introTitle: "À propos de la recherche",
+              introDesc: "Bienvenue dans mon portfolio académique. Cliquez sur les mots du nuage pour filtrer. Les mots-clés sont générés à partir des titres et des tags manuels.",
+              odsTitle: "Contribution aux ODD (ONU)",
+              collabTitle: "Travaux en collaboration",
+              backTop: "↑ Haut de page",
+              loading: "Chargement...",
+              filterReset: "Effacer le filtre",
+              noPubs: "Aucune publication trouvée.",
+              filterActive: "Filtré par : "
+          },
+          en: {
+              title: "My Publications",
+              introTitle: "About the Research",
+              introDesc: "Welcome to my academic portfolio. Click on the words in the cloud to filter. Keywords are generated from both manual tags and publication titles.",
+              odsTitle: "SDG Contribution (UN)",
+              collabTitle: "Collaborative Works",
+              backTop: "↑ Back to top",
+              loading: "Loading...",
+              filterReset: "Clear Filter",
+              noPubs: "No publications found.",
+              filterActive: "Filtered by: "
+          }
+      };
+
+      // Stop words
+      const stopWords = new Set([
+        "the", "of", "and", "in", "to", "a", "for", "with", "on", "at", "by", "from", "an", "is", "as", "using", "study", "analysis", "based", "approach", "potential", "review",
+        "de", "da", "do", "em", "na", "no", "para", "com", "por", "um", "uma", "os", "as", "e", "ou", "estudo", "analise", "sobre", "abordagem", "uso", "potencial", "desenvolvimento",
+        "le", "la", "les", "des", "du", "et", "en", "pour", "avec", "sur", "par", "une", "un", "dans"
+      ]);
+
+      // --- INICIALIZAÇÃO ---
+      window.onscroll = function() {
+          var btn = document.getElementById("floatBtn");
+          if (window.scrollY > 300) btn.classList.add("visible");
+          else btn.classList.remove("visible");
+      };
+
+      window.onload = function() {
+        if (typeof google === 'undefined' || typeof google.script === 'undefined') return;
+        // Chama o servidor
+        google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).getPublicationData();
+      };
+
+      function onFailure(error) { 
+        document.getElementById('content').innerHTML = '<div class="error-box"><h3>❌ Erro</h3><p>' + error.message + '</p></div>'; 
+      }
+
+      function onSuccess(jsonString) {
+        try {
+            var response = JSON.parse(jsonString);
+            if (response.error) { 
+                document.getElementById('content').innerHTML = '<div class="error-box">' + response.error + '</div>'; 
+                return; 
+            }
+
+            // Armazena dados no Contexto Global
+            globalCtx.pubData = response.publications || {}; 
+            globalCtx.mapData = response.mapData || null; 
+            globalCtx.rawWordCloudData = response.wordCloudData || [];
+            globalCtx.categoryTranslations = response.categoryTranslations || {};
+            globalCtx.profileData = response.profileData || []; // SALVO GLOBALMENTE
+            globalCtx.odsData = response.odsData || [];         // SALVO GLOBALMENTE
+
+            // 1. Processamento
+            preprocessData(); // Extrai títulos limpos
+            generateHybridWordCloud(); // Gera nuvem
+            
+            // 2. Renderização de Gráficos (Assíncrona)
+            setTimeout(function() {
+                drawWordCloud();
+                if (globalCtx.mapData && globalCtx.mapData.length > 1) {
+                    document.getElementById('map-section-container').style.display = 'block';
+                    google.charts.setOnLoadCallback(drawMap);
+                }
+            }, 0);
+
+            // 3. Renderização Principal (Conteúdo + Perfil)
+            renderContent();
+
+        } catch (e) { 
+            console.error(e);
+            document.getElementById('content').innerHTML = '<div class="error-box">Erro Javascript: ' + e.message + '</div>'; 
+        }
+      }
+
+      // --- PROCESSAMENTO OTIMIZADO ---
+      function preprocessData() {
+          if (!globalCtx.pubData) return;
+          for (var section in globalCtx.pubData) {
+              globalCtx.pubData[section].forEach(function(pub) {
+                  pub.cleanTitle = extractTitleFromCitation(pub.citation);
+              });
+          }
+      }
+
+      function extractTitleFromCitation(citation) {
+          if (!citation) return "";
+          var text = citation.replace(/<[^>]*>?/gm, ''); // Remove HTML
+          var parts = text.split(".. ");
+          if (parts.length > 1) {
+              return parts[1].split(". ")[0].trim();
+          } 
+          return text;
+      }
+
+      function generateHybridWordCloud() {
+          var wordCounts = {};
+          
+          // Keywords da Planilha
+          globalCtx.rawWordCloudData.forEach(function(item) {
+              wordCounts[item.x.toLowerCase()] = item.value;
+          });
+
+          // Keywords do Título
+          if (globalCtx.pubData) {
+              for (var section in globalCtx.pubData) {
+                  globalCtx.pubData[section].forEach(function(pub) {
+                      if(!pub.cleanTitle) return;
+                      var words = pub.cleanTitle.replace(/[.,:;()?!"]/g, " ").split(/\s+/);
+                      words.forEach(function(word) {
+                          var w = word.toLowerCase().trim();
+                          if (w.length > 3 && !Number(w) && !stopWords.has(w)) {
+                              wordCounts[w] = (wordCounts[w] || 0) + 1;
+                          }
+                      });
+                  });
+              }
+          }
+
+          var finalArray = [];
+          for (var k in wordCounts) {
+              if (wordCounts[k] > 0) finalArray.push({x: k, value: wordCounts[k]});
+          }
+          finalArray.sort((a,b) => b.value - a.value);
+          globalCtx.finalWordCloudData = finalArray.slice(0, 60);
+      }
+
+      // --- RENDERIZAÇÃO OTIMIZADA COM DOCUMENT FRAGMENT ---
+      function renderContent() {
+          var t = translations[globalCtx.currentLang];
+          var container = document.getElementById('content');
+          var navContainer = document.getElementById('nav-menu');
+          var resetBtn = document.getElementById('resetFilterBtn');
+
+          // Atualiza UI Fixa
+          document.getElementById('page-title').textContent = t.title;
+          document.getElementById('intro-title').textContent = t.introTitle;
+          document.getElementById('intro-desc').textContent = t.introDesc;
+          document.getElementById('ods-title').textContent = t.odsTitle;
+          document.getElementById('map-title-text').textContent = t.collabTitle;
+          
+          var cloudLoading = document.getElementById('cloud-loading');
+          if (cloudLoading) cloudLoading.textContent = t.loading;
+
+          // CORREÇÃO: Renderiza/Atualiza as estatísticas e ODS agora
+          if (globalCtx.profileData && globalCtx.profileData.length > 0) {
+              renderStats(globalCtx.profileData);
+          }
+          if (globalCtx.odsData && globalCtx.odsData.length > 0) {
+              renderODS(globalCtx.odsData);
+          }
+
+          // Configura Botão Reset
+          if(globalCtx.activeFilter) {
+             resetBtn.textContent = t.filterReset + " (" + globalCtx.activeFilter + ")";
+             resetBtn.style.display = 'block';
+          } else {
+             resetBtn.style.display = 'none';
+          }
+
+          // Limpa containers
+          container.innerHTML = "";
+          navContainer.innerHTML = "";
+
+          if (!globalCtx.pubData || Object.keys(globalCtx.pubData).length === 0) {
+              container.innerHTML = '<div style="text-align:center; padding:20px;">' + t.noPubs + '</div>';
+              return;
+          }
+
+          // USAR FRAGMENTS PARA OTIMIZAR DOM
+          var mainFragment = document.createDocumentFragment();
+          var navFragment = document.createDocumentFragment();
+          
+          var sectionIndex = 0;
+          var hasAnyPub = false;
+          var filterLower = globalCtx.activeFilter ? globalCtx.activeFilter.toLowerCase() : null;
+
+          for (var originalSectionName in globalCtx.pubData) {
+              if (globalCtx.pubData.hasOwnProperty(originalSectionName)) {
+                  
+                  // Tradução da Categoria
+                  var displaySectionName = originalSectionName;
+                  if (globalCtx.categoryTranslations[originalSectionName]) {
+                       displaySectionName = globalCtx.categoryTranslations[originalSectionName][globalCtx.currentLang] || originalSectionName;
+                  }
+
+                  // Filtro
+                  var pubsInSection = globalCtx.pubData[originalSectionName].slice().reverse();
+                  if (filterLower) {
+                      pubsInSection = pubsInSection.filter(function(p) {
+                          var kwMatch = p.keywords && ((typeof p.keywords === 'string' && p.keywords.toLowerCase().includes(filterLower)) || (Array.isArray(p.keywords) && p.keywords.some(k => k.toLowerCase() === filterLower)));
+                          var titleMatch = p.cleanTitle && p.cleanTitle.toLowerCase().includes(filterLower);
+                          return kwMatch || titleMatch;
+                      });
+                  }
+
+                  if (pubsInSection.length === 0) continue;
+                  
+                  hasAnyPub = true;
+                  sectionIndex++;
+                  var safeId = "section-" + sectionIndex;
+
+                  // Cria Nav Item
+                  var navBtn = document.createElement('span'); 
+                  navBtn.className = 'nav-item'; 
+                  navBtn.textContent = displaySectionName; 
+                  (function(id){ navBtn.onclick = function() { scrollToId(id); }; })(safeId);
+                  navFragment.appendChild(navBtn);
+
+                  // Cria Título Seção
+                  var header = document.createElement('h2'); 
+                  header.id = safeId; 
+                  header.className = 'section-title'; 
+                  header.innerHTML = displaySectionName + ' <span class="back-to-top-text" onclick="scrollToId(\'top-anchor\')">' + t.backTop + '</span>'; 
+                  mainFragment.appendChild(header);
+
+                  // Cria Cards
+                  pubsInSection.forEach(function(pub) {
+                    var card = document.createElement('div'); card.className = 'pub-card';
+                    
+                    var badgeRowHtml = '<div class="badges-row">';
+                    var cleanDoi = "";
+                    if (pub.doi) {
+                        var raw = String(pub.doi).trim();
+                        if (raw.startsWith('10.') || raw.startsWith('doi:10.')) cleanDoi = raw.replace(/^doi:/i, '').trim();
+                        else { var match = raw.match(/(10\.\d{4,9}\/[-._;()/:a-zA-Z0-9]+)/); if (match) cleanDoi = match[1]; }
+                    }
+
+                    if (pub.international && String(pub.international).toLowerCase() === 'sim') badgeRowHtml += createShieldHtml("#", "Internacional", "orange", "googleearth");
+                    if (cleanDoi) badgeRowHtml += createShieldHtml("https://doi.org/" + cleanDoi, "DOI", "005a9c", "doi");
+                    if (pub.link1) badgeRowHtml += createShieldHtml(pub.link1); 
+                    if (pub.link2) badgeRowHtml += createShieldHtml(pub.link2); 
+                    if (pub.link3) badgeRowHtml += createShieldHtml(pub.link3); 
+                    if (pub.preprint) badgeRowHtml += createShieldHtml(pub.preprint, "Preprint", "blueviolet", "openaccess");
+                    badgeRowHtml += '</div>';
+
+                    var contentHtml = '<div class="pub-content"><div class="pub-citation">' + pub.citation + '</div>' + badgeRowHtml + '</div>';
+                    
+                    var metricsHtml = '';
+                    if (cleanDoi) {
+                        metricsHtml = '<div class="metrics-container">' +
+                            '<div class="altmetric-embed" data-badge-type="donut" data-doi="' + cleanDoi + '" data-condensed="true" data-hide-no-mentions="true"></div>' +
+                            '<a href="https://plu.mx/plum/a/?doi=' + cleanDoi + '" class="plumx-plum-print-popup plum-bigben-theme" data-popup="top" data-hide-when-empty="true"></a>' +
+                            '<span class="__dimensions_badge_embed__" data-doi="' + cleanDoi + '" data-style="small_circle" data-hide-zero-citations="true"></span>' +
+                        '</div>';
+                    }
+
+                    card.innerHTML = contentHtml + metricsHtml;
+                    mainFragment.appendChild(card);
+                  });
+              }
+          }
+
+          if (!hasAnyPub) {
+              container.innerHTML = '<div style="text-align:center; padding:40px;">' + t.noPubs + '</div>';
+          } else {
+               if (globalCtx.mapData) {
+                   var mapBtn = document.createElement('span'); 
+                   mapBtn.className = 'nav-item'; 
+                   mapBtn.textContent = (globalCtx.currentLang === 'pt' ? 'Colaborações' : (globalCtx.currentLang === 'fr' ? 'Collaboration' : 'Collaboration')); 
+                   mapBtn.onclick = function() { scrollToId('section-map'); }; 
+                   navFragment.appendChild(mapBtn);
+               }
+               
+               navContainer.appendChild(navFragment);
+               container.appendChild(mainFragment);
+          }
+
+          reloadBadgeScripts();
+      }
+
+      // --- HELPERS GRAFICOS E UTEIS ---
+
+      function renderStats(profileData) {
+          var container = document.getElementById('profile-stats');
+          container.innerHTML = "";
+          
+          profileData.forEach(function(stat) {
+              var box = document.createElement('div'); 
+              box.className = 'stat-box';
+              
+              // Lógica para pegar o idioma correto
+              var labelText = "";
+              if (stat.labels && typeof stat.labels === 'object') {
+                  labelText = stat.labels[globalCtx.currentLang] || stat.labels['pt'];
+              } else {
+                  labelText = stat.label || ""; 
+              }
+
+              box.innerHTML = '<span class="stat-value">' + stat.value + '</span><span class="stat-label">' + labelText + '</span>';
+              container.appendChild(box);
+          });
+      }
+
+      function renderODS(odsData) {
+          var container = document.getElementById('ods-container');
+          container.innerHTML = "";
+          odsData.forEach(function(odsNum) {
+              var num = String(odsNum).replace(/\D/g, ''); 
+              if (num) {
+                  var cleanNum = parseInt(num, 10);
+                  var img = document.createElement('img');
+                  img.className = 'ods-icon';
+                  // Opcional: Se quiser usar o idioma no path: /goals/" + globalCtx.currentLang + "/...
+                  img.src = "https://open-sdg.github.io/sdg-translations/assets/img/goals/en/" + cleanNum + ".png";
+                  img.title = "ODS " + cleanNum;
+                  img.onerror = function() { this.style.display='none'; };
+                  container.appendChild(img);
+              }
+          });
+      }
+
+      function drawMap() { 
+          if (!globalCtx.mapData) return; 
+          var data = google.visualization.arrayToDataTable(globalCtx.mapData); 
+          var options = { colorAxis: {colors: ['#e8daef', '#6c3483']}, backgroundColor: '#fcfbfd', datalessRegionColor: '#f2f2f2', defaultColor: '#f5f5f5', legend: 'none', tooltip: {textStyle: {color: '#333'}, showColorCode: true}, displayMode: 'regions', resolution: 'countries' }; 
+          var chart = new google.visualization.GeoChart(document.getElementById('map_div')); 
+          chart.draw(data, options); 
+      }
+      
+      function drawWordCloud() { 
+          if(!globalCtx.finalWordCloudData) return; 
+          document.getElementById('cloud_div').innerHTML = ""; 
+          var chart = anychart.tagCloud(globalCtx.finalWordCloudData); 
+          chart.angles([0]); chart.colorRange(false); 
+          chart.palette(['#8e44ad', '#9b59b6', '#4a235a', '#6c3483', '#af7ac5']); 
+          chart.tooltip().format('Frequência: {%value}'); 
+          chart.listen("pointClick", function(e) { filterByKeyword(e.point.get("x")); });
+          chart.container("cloud_div"); chart.draw(); 
+      }
+      
+      // Funções de Controle
+      function changeLanguage() {
+          var select = document.getElementById('languageSelect');
+          globalCtx.currentLang = select.value;
+          renderContent(); 
+      }
+
+      function filterByKeyword(keyword) {
+          globalCtx.activeFilter = keyword;
+          renderContent();
+      }
+
+      function resetFilter() {
+          globalCtx.activeFilter = null;
+          renderContent();
+      }
+
+      function scrollToId(id) { 
+          var element = document.getElementById(id); 
+          if (element) element.scrollIntoView({ behavior: 'smooth', block: 'start' }); 
+      }
+
+      function reloadBadgeScripts() {
+        if (window.__dimensions_embed && typeof window.__dimensions_embed.addBadges === 'function') window.__dimensions_embed.addBadges();
+        else if (!document.getElementById('script-dim')) { 
+            var s = document.createElement('script'); s.id='script-dim'; s.async = true; s.src = "https://badge.dimensions.ai/badge.js"; document.body.appendChild(s); 
+        }
+        
+        if (window._altmetric && typeof window._altmetric.embed_init === 'function') window._altmetric.embed_init();
+        else if (!document.getElementById('script-alt')) { 
+            var s = document.createElement('script'); s.id='script-alt'; s.src = "https://d1bxh8uas1mnw7.cloudfront.net/assets/embed.js"; document.body.appendChild(s); 
+        }
+        
+        if (!document.getElementById('script-plum')) { 
+            var s = document.createElement('script'); s.id = 'script-plum'; s.async = true; s.src = "//cdn.plu.mx/widget-popup.js"; document.body.appendChild(s); 
+        }
+      }
+
+      function createShieldHtml(url, label, color, logo) {
+          if (!url) return "";
+          if (!label) {
+             var u = url.toLowerCase();
+             if (u.includes('github')) { label='GitHub'; color='181717'; logo='github'; }
+             else if (u.includes('zenodo')) { label='Zenodo'; color='025686'; logo='zenodo'; }
+             else if (u.includes('youtube')||u.includes('youtu')) { label='Video'; color='FF0000'; logo='youtube'; }
+             else if (u.includes('pdf')) { label='PDF'; color='EC1C24'; logo='adobeacrobatreader'; }
+             else { label='Link'; color='lightgrey'; logo='link'; }
+          }
+          return '<a href="' + url + '" target="_blank"><img src="https://img.shields.io/badge/' + encodeURIComponent(label) + '-Acessar-' + color + '?style=flat-square&logo=' + logo + '&logoColor=white" /></a>';
+      }
+
+      window.addEventListener('resize', function() { drawMap(); });
+    </script>
+  </body>
+</html>
