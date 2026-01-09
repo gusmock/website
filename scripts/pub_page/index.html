@@ -17,7 +17,7 @@
     <script src="https://cdn.anychart.com/releases/8.11.0/js/anychart-tag-cloud.min.js"></script>
 
     <style>
-      /* --- CSS OTIMIZADO --- */
+      /* --- CSS RESET & BASE --- */
       body { font-family: 'Bitter', serif; background-color: #fcfbfd; color: #333; max-width: 1100px; margin: 0 auto; padding: 20px; will-change: scroll-position; }
       h1 { font-family: 'Montserrat', sans-serif; text-align: left; color: #4a235a; font-weight: 700; margin-bottom: 30px; font-size: 2.8em; letter-spacing: -1px; }
       
@@ -61,18 +61,62 @@
       
       #map_div { width: 100%; height: 400px; margin: 0 auto 40px auto; border-radius: 6px; overflow: hidden; border: 1px solid #e1e4e8; }
       
-      /* Card Publicação */
-      .pub-card { background: white; border-radius: 6px; box-shadow: 0 2px 4px rgba(0,0,0,0.08); margin-bottom: 20px; padding: 25px; display: grid; grid-template-columns: 1fr auto; gap: 20px; border: 1px solid #f4ecf7; align-items: center; contain: content; /* Otimização de renderização */ }
-      @media (max-width: 850px) { .pub-card { grid-template-columns: 1fr; } .metrics-container { justify-content: flex-start; border-left: none; padding-left: 0; } }
-      .pub-content { font-size: 16px; line-height: 1.6; color: #2c3e50; }
+      /* --- CSS CARD PUBLICACAO (Redesenhado para Flexbox) --- */
+      .pub-card { 
+          background: white; 
+          border-radius: 6px; 
+          box-shadow: 0 2px 4px rgba(0,0,0,0.08); 
+          margin-bottom: 20px; 
+          padding: 25px; 
+          border: 1px solid #f4ecf7; 
+          
+          /* MUDANÇA: Usando Flexbox em vez de Grid para evitar corte de conteúdo */
+          display: flex; 
+          flex-wrap: wrap; /* Se a tela for pequena, quebra linha */
+          justify-content: space-between;
+          align-items: center; 
+          
+          /* CRÍTICO PARA O PLUMX */
+          overflow: visible !important; 
+          position: relative;
+          z-index: 1;
+      }
+
+      .pub-content { 
+          flex: 1 1 60%; /* Ocupa 60% ou mais */
+          min-width: 300px;
+          font-size: 16px; 
+          line-height: 1.6; 
+          color: #2c3e50; 
+          padding-right: 20px;
+      }
       
       .badges-row { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; min-height: 20px; }
-      .badges-row img { height: 20px; display: block; } /* Define altura fixa para evitar Layout Shift */
+      .badges-row img { height: 20px; display: block; } 
       
-      .metrics-container { display: flex; flex-direction: row; gap: 15px; border-left: 1px solid #eee; padding-left: 20px; min-width: 280px; justify-content: flex-end; align-items: center; }
+      .metrics-container { 
+          flex: 0 1 auto;
+          display: flex; 
+          flex-direction: row; 
+          gap: 15px; 
+          justify-content: flex-end; 
+          align-items: center;
+          
+          border-left: 1px solid #eee; 
+          padding-left: 20px; 
+          
+          /* CRÍTICO: Z-index alto para o popup flutuar acima de tudo */
+          position: relative;
+          z-index: 9999;
+      }
+
+      @media (max-width: 850px) { 
+          .pub-card { flex-direction: column; align-items: flex-start; } 
+          .metrics-container { width: 100%; justify-content: flex-start; border-left: none; padding-left: 0; margin-top: 15px; border-top: 1px solid #eee; padding-top: 15px;} 
+      }
       
-      /* Styles para Badges */
-      .plumx-plum-print-popup { display: inline-block !important; height: 20px; }
+      /* Styles para Badges de Métricas */
+      .plumx-plum-print-popup { display: inline-block !important; height: 20px; min-width: 50px; }
       .__dimensions_badge_embed__ { display: inline-block; margin: 0; }
       .altmetric-embed { display: inline-block; margin: 0; min-width: 50px; pointer-events: none; cursor: default; } 
       
@@ -137,8 +181,8 @@
           currentLang: 'pt',
           activeFilter: null,
           categoryTranslations: {},
-          profileData: [], // CORREÇÃO: Adicionado ao estado global
-          odsData: []      // CORREÇÃO: Adicionado ao estado global
+          profileData: [], 
+          odsData: []      
       };
 
       // --- TEXTOS UI ---
@@ -181,14 +225,12 @@
           }
       };
 
-      // Stop words
       const stopWords = new Set([
         "the", "of", "and", "in", "to", "a", "for", "with", "on", "at", "by", "from", "an", "is", "as", "using", "study", "analysis", "based", "approach", "potential", "review",
         "de", "da", "do", "em", "na", "no", "para", "com", "por", "um", "uma", "os", "as", "e", "ou", "estudo", "analise", "sobre", "abordagem", "uso", "potencial", "desenvolvimento",
         "le", "la", "les", "des", "du", "et", "en", "pour", "avec", "sur", "par", "une", "un", "dans"
       ]);
 
-      // --- INICIALIZAÇÃO ---
       window.onscroll = function() {
           var btn = document.getElementById("floatBtn");
           if (window.scrollY > 300) btn.classList.add("visible");
@@ -197,7 +239,6 @@
 
       window.onload = function() {
         if (typeof google === 'undefined' || typeof google.script === 'undefined') return;
-        // Chama o servidor
         google.script.run.withSuccessHandler(onSuccess).withFailureHandler(onFailure).getPublicationData();
       };
 
@@ -213,19 +254,16 @@
                 return; 
             }
 
-            // Armazena dados no Contexto Global
             globalCtx.pubData = response.publications || {}; 
             globalCtx.mapData = response.mapData || null; 
             globalCtx.rawWordCloudData = response.wordCloudData || [];
             globalCtx.categoryTranslations = response.categoryTranslations || {};
-            globalCtx.profileData = response.profileData || []; // SALVO GLOBALMENTE
-            globalCtx.odsData = response.odsData || [];         // SALVO GLOBALMENTE
+            globalCtx.profileData = response.profileData || []; 
+            globalCtx.odsData = response.odsData || [];        
 
-            // 1. Processamento
-            preprocessData(); // Extrai títulos limpos
-            generateHybridWordCloud(); // Gera nuvem
+            preprocessData(); 
+            generateHybridWordCloud(); 
             
-            // 2. Renderização de Gráficos (Assíncrona)
             setTimeout(function() {
                 drawWordCloud();
                 if (globalCtx.mapData && globalCtx.mapData.length > 1) {
@@ -234,7 +272,6 @@
                 }
             }, 0);
 
-            // 3. Renderização Principal (Conteúdo + Perfil)
             renderContent();
 
         } catch (e) { 
@@ -243,7 +280,6 @@
         }
       }
 
-      // --- PROCESSAMENTO OTIMIZADO ---
       function preprocessData() {
           if (!globalCtx.pubData) return;
           for (var section in globalCtx.pubData) {
@@ -255,7 +291,7 @@
 
       function extractTitleFromCitation(citation) {
           if (!citation) return "";
-          var text = citation.replace(/<[^>]*>?/gm, ''); // Remove HTML
+          var text = citation.replace(/<[^>]*>?/gm, ''); 
           var parts = text.split(".. ");
           if (parts.length > 1) {
               return parts[1].split(". ")[0].trim();
@@ -266,12 +302,10 @@
       function generateHybridWordCloud() {
           var wordCounts = {};
           
-          // Keywords da Planilha
           globalCtx.rawWordCloudData.forEach(function(item) {
               wordCounts[item.x.toLowerCase()] = item.value;
           });
 
-          // Keywords do Título
           if (globalCtx.pubData) {
               for (var section in globalCtx.pubData) {
                   globalCtx.pubData[section].forEach(function(pub) {
@@ -295,14 +329,13 @@
           globalCtx.finalWordCloudData = finalArray.slice(0, 60);
       }
 
-      // --- RENDERIZAÇÃO OTIMIZADA COM DOCUMENT FRAGMENT ---
+      // --- RENDERIZAÇÃO ---
       function renderContent() {
           var t = translations[globalCtx.currentLang];
           var container = document.getElementById('content');
           var navContainer = document.getElementById('nav-menu');
           var resetBtn = document.getElementById('resetFilterBtn');
 
-          // Atualiza UI Fixa
           document.getElementById('page-title').textContent = t.title;
           document.getElementById('intro-title').textContent = t.introTitle;
           document.getElementById('intro-desc').textContent = t.introDesc;
@@ -312,15 +345,9 @@
           var cloudLoading = document.getElementById('cloud-loading');
           if (cloudLoading) cloudLoading.textContent = t.loading;
 
-          // CORREÇÃO: Renderiza/Atualiza as estatísticas e ODS agora
-          if (globalCtx.profileData && globalCtx.profileData.length > 0) {
-              renderStats(globalCtx.profileData);
-          }
-          if (globalCtx.odsData && globalCtx.odsData.length > 0) {
-              renderODS(globalCtx.odsData);
-          }
+          if (globalCtx.profileData && globalCtx.profileData.length > 0) renderStats(globalCtx.profileData);
+          if (globalCtx.odsData && globalCtx.odsData.length > 0) renderODS(globalCtx.odsData);
 
-          // Configura Botão Reset
           if(globalCtx.activeFilter) {
              resetBtn.textContent = t.filterReset + " (" + globalCtx.activeFilter + ")";
              resetBtn.style.display = 'block';
@@ -328,7 +355,6 @@
              resetBtn.style.display = 'none';
           }
 
-          // Limpa containers
           container.innerHTML = "";
           navContainer.innerHTML = "";
 
@@ -337,7 +363,6 @@
               return;
           }
 
-          // USAR FRAGMENTS PARA OTIMIZAR DOM
           var mainFragment = document.createDocumentFragment();
           var navFragment = document.createDocumentFragment();
           
@@ -348,13 +373,11 @@
           for (var originalSectionName in globalCtx.pubData) {
               if (globalCtx.pubData.hasOwnProperty(originalSectionName)) {
                   
-                  // Tradução da Categoria
                   var displaySectionName = originalSectionName;
                   if (globalCtx.categoryTranslations[originalSectionName]) {
                        displaySectionName = globalCtx.categoryTranslations[originalSectionName][globalCtx.currentLang] || originalSectionName;
                   }
 
-                  // Filtro
                   var pubsInSection = globalCtx.pubData[originalSectionName].slice().reverse();
                   if (filterLower) {
                       pubsInSection = pubsInSection.filter(function(p) {
@@ -370,34 +393,35 @@
                   sectionIndex++;
                   var safeId = "section-" + sectionIndex;
 
-                  // Cria Nav Item
                   var navBtn = document.createElement('span'); 
                   navBtn.className = 'nav-item'; 
                   navBtn.textContent = displaySectionName; 
                   (function(id){ navBtn.onclick = function() { scrollToId(id); }; })(safeId);
                   navFragment.appendChild(navBtn);
 
-                  // Cria Título Seção
                   var header = document.createElement('h2'); 
                   header.id = safeId; 
                   header.className = 'section-title'; 
                   header.innerHTML = displaySectionName + ' <span class="back-to-top-text" onclick="scrollToId(\'top-anchor\')">' + t.backTop + '</span>'; 
                   mainFragment.appendChild(header);
 
-                  // Cria Cards
                   pubsInSection.forEach(function(pub) {
                     var card = document.createElement('div'); card.className = 'pub-card';
                     
                     var badgeRowHtml = '<div class="badges-row">';
+                    
                     var cleanDoi = "";
                     if (pub.doi) {
                         var raw = String(pub.doi).trim();
-                        if (raw.startsWith('10.') || raw.startsWith('doi:10.')) cleanDoi = raw.replace(/^doi:/i, '').trim();
-                        else { var match = raw.match(/(10\.\d{4,9}\/[-._;()/:a-zA-Z0-9]+)/); if (match) cleanDoi = match[1]; }
+                        raw = raw.replace(/^(https?:\/\/)?(dx\.)?doi\.org\//i, "");
+                        raw = raw.replace(/^doi:/i, "");
+                        raw = raw.trim();
+                        if (raw.startsWith('10.') || raw.match(/^10\./)) cleanDoi = raw;
                     }
 
                     if (pub.international && String(pub.international).toLowerCase() === 'sim') badgeRowHtml += createShieldHtml("#", "Internacional", "orange", "googleearth");
                     if (cleanDoi) badgeRowHtml += createShieldHtml("https://doi.org/" + cleanDoi, "DOI", "005a9c", "doi");
+                    // Links dinâmicos
                     if (pub.link1) badgeRowHtml += createShieldHtml(pub.link1); 
                     if (pub.link2) badgeRowHtml += createShieldHtml(pub.link2); 
                     if (pub.link3) badgeRowHtml += createShieldHtml(pub.link3); 
@@ -439,24 +463,18 @@
           reloadBadgeScripts();
       }
 
-      // --- HELPERS GRAFICOS E UTEIS ---
-
       function renderStats(profileData) {
           var container = document.getElementById('profile-stats');
           container.innerHTML = "";
-          
           profileData.forEach(function(stat) {
               var box = document.createElement('div'); 
               box.className = 'stat-box';
-              
-              // Lógica para pegar o idioma correto
               var labelText = "";
               if (stat.labels && typeof stat.labels === 'object') {
                   labelText = stat.labels[globalCtx.currentLang] || stat.labels['pt'];
               } else {
                   labelText = stat.label || ""; 
               }
-
               box.innerHTML = '<span class="stat-value">' + stat.value + '</span><span class="stat-label">' + labelText + '</span>';
               container.appendChild(box);
           });
@@ -471,7 +489,6 @@
                   var cleanNum = parseInt(num, 10);
                   var img = document.createElement('img');
                   img.className = 'ods-icon';
-                  // Opcional: Se quiser usar o idioma no path: /goals/" + globalCtx.currentLang + "/...
                   img.src = "https://open-sdg.github.io/sdg-translations/assets/img/goals/en/" + cleanNum + ".png";
                   img.title = "ODS " + cleanNum;
                   img.onerror = function() { this.style.display='none'; };
@@ -499,7 +516,6 @@
           chart.container("cloud_div"); chart.draw(); 
       }
       
-      // Funções de Controle
       function changeLanguage() {
           var select = document.getElementById('languageSelect');
           globalCtx.currentLang = select.value;
@@ -537,17 +553,51 @@
         }
       }
 
-      function createShieldHtml(url, label, color, logo) {
+      // --- NOVA FUNÇÃO DE SHIELD INTELIGENTE ---
+      function createShieldHtml(url, labelOverride, colorOverride, logoOverride) {
           if (!url) return "";
-          if (!label) {
-             var u = url.toLowerCase();
-             if (u.includes('github')) { label='GitHub'; color='181717'; logo='github'; }
-             else if (u.includes('zenodo')) { label='Zenodo'; color='025686'; logo='zenodo'; }
-             else if (u.includes('youtube')||u.includes('youtu')) { label='Video'; color='FF0000'; logo='youtube'; }
-             else if (u.includes('pdf')) { label='PDF'; color='EC1C24'; logo='adobeacrobatreader'; }
-             else { label='Link'; color='lightgrey'; logo='link'; }
+          var u = url.toLowerCase();
+          
+          var label = "Link";
+          var color = "lightgrey"; 
+          var logo = "link";       
+
+          if (u.includes("github.com")) {
+              label = "GitHub"; color = "181717"; logo = "github";
+          } 
+          else if (u.includes("arxiv.org")) {
+              label = "arXiv"; color = "B31B1B"; logo = "arxiv";
           }
-          return '<a href="' + url + '" target="_blank"><img src="https://img.shields.io/badge/' + encodeURIComponent(label) + '-Acessar-' + color + '?style=flat-square&logo=' + logo + '&logoColor=white" /></a>';
+          else if (u.includes("zenodo.org")) {
+              label = "Zenodo"; color = "025686"; logo = "zenodo";
+          }
+          else if (u.includes("sciencedirect.com") || u.includes("elsevier")) {
+              label = "Elsevier"; color = "FF6C00"; logo = "elsevier";
+          }
+          else if (u.includes("springer")) {
+              label = "Springer"; color = "009933"; logo = "springer";
+          }
+          else if (u.includes("wiley")) {
+              label = "Wiley"; color = "00559E"; logo = "wiley";
+          }
+          else if (u.includes("researchgate")) {
+              label = "ResearchGate"; color = "00CCBB"; logo = "researchgate";
+          }
+          else if (u.includes(".pdf")) {
+              label = "PDF"; color = "EC1C24"; logo = "adobeacrobatreader";
+          }
+          else if (u.includes("youtu")) {
+              label = "Video"; color = "FF0000"; logo = "youtube";
+          }
+
+          if (labelOverride) label = labelOverride;
+          if (colorOverride) color = colorOverride;
+          if (logoOverride) logo = logoOverride;
+
+          return '<a href="' + url + '" target="_blank" style="text-decoration:none; opacity:0.9; transition:opacity 0.2s;">' +
+                 '<img src="https://img.shields.io/badge/' + encodeURIComponent(label) + '-Acessar-' + color + 
+                 '?style=flat-square&logo=' + logo + '&logoColor=white" ' +
+                 'alt="' + label + '" style="vertical-align:middle;" /></a>';
       }
 
       window.addEventListener('resize', function() { drawMap(); });
