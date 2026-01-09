@@ -58,7 +58,9 @@ function getPublicationData() {
         var pubs = [];
         var headers = data[0];
         
-        var colMap = {citation:0, int:6, doi:1, l1:2, l2:3, l3:4, pre:5, key:7, date:8};
+        // Mapeamento de Colunas (Adicionado pub:9 para Coluna J)
+        var colMap = {citation:0, int:6, doi:1, l1:2, l2:3, l3:4, pre:5, key:7, date:8, pub:9};
+        
         for(var k=0; k<headers.length; k++){
           var h = headers[k].toString().toLowerCase();
           if(h.includes("citação") || h.includes("citation")) colMap.citation = k;
@@ -66,6 +68,8 @@ function getPublicationData() {
           if(h.includes("doi")) colMap.doi = k;
           if(h.includes("keyword") || h.includes("palavras")) colMap.key = k;
           if(h.includes("data") || h.includes("date")) colMap.date = k;
+          // Detecta cabeçalho 'Publicado' ou 'Published' para a coluna J
+          if(h.includes("publicado") || h.includes("published") || h.includes("revisado")) colMap.pub = k;
         }
 
         for (var i = 1; i < data.length; i++) {
@@ -87,7 +91,8 @@ function getPublicationData() {
             link3: row[colMap.l3],
             preprint: row[colMap.pre],
             date: displayDate,
-            keywords: row[colMap.key] 
+            keywords: row[colMap.key],
+            published: row[colMap.pub] // Nova propriedade lida da coluna J
           });
 
           if (row[colMap.key]) {
@@ -155,7 +160,10 @@ function preencherDadosFaltantes() {
       processarAbaCompleta(sheet);
     }
   });
-  
+
+  // Atualiza "Total de Citações" na aba Perfil (OpenAlex)
+  atualizarTotalCitacoesPerfil();
+
   ss.toast("Dados atualizados! Atualize a página do site.", "Concluído", 10);
 }
 
@@ -275,7 +283,7 @@ function gerarCitacao(json) {
       // AJUSTE SEU NOME AQUI PARA NEGRITO/MAIÚSCULO
       var nomeLimpo = sobrenome.toLowerCase();
       // Detecta Mockaitis ou Mockaitis Neto, etc
-      var ehVoce = (nomeLimpo === "mockaitis" || nomeLimpo === "mockaitis-neto" || nomeLimpo.includes("mockaitis"));
+      var ehVoce = (nomeLimpo === "mockaitis" || nomeLimpo.includes("mockaitis"));
 
       if (ehVoce) {
         // Seu nome em destaque
@@ -316,4 +324,76 @@ function gerarCitacao(json) {
   citacao += detalhes.join(", ") + ".";
   
   return citacao;
+}
+
+// --- ATUALIZA TOTAL DE CITAÇÕES (Perfil -> célula à direita de "Total de Citações") ---
+// Fonte: OpenAlex (cited_by_count) via ORCID
+function atualizarTotalCitacoesPerfil() {
+  var ORCID = "0000-0002-4231-1056";
+  var sheetName = "Perfil";
+  var labelText = "Total de Citações";
+
+  var ss = SpreadsheetApp.getActiveSpreadsheet();
+  var sh = ss.getSheetByName(sheetName);
+  if (!sh) throw new Error('Aba "' + sheetName + '" não encontrada.');
+
+  var total = buscarTotalCitacoesOpenAlexPorOrcid_(ORCID);
+
+  // acha a célula que contém exatamente "Total de Citações"
+  var cell = sh.createTextFinder(labelText).matchEntireCell(true).findNext();
+  if (!cell) throw new Error('Texto "' + labelText + '" não encontrado na aba "' + sheetName + '".');
+
+  // escreve na célula à direita
+  sh.getRange(cell.getRow(), cell.getColumn() + 1).setValue(total);
+
+  // opcional: timestamp 2 colunas à direita
+  // sh.getRange(cell.getRow(), cell.getColumn() + 2).setValue(new Date());
+}
+
+// helper: busca cited_by_count no OpenAlex por ORCID (tenta formatos comuns)
+function buscarTotalCitacoesOpenAlexPorOrcid_(orcid) {
+  var clean = String(orcid).trim();
+
+  var candidates = [
+    clean,
+    "https://orcid.org/" + clean,
+    "http://orcid.org/" + clean
+  ];
+
+  for (var i = 0; i < candidates.length; i++) {
+    var url =
+      "https://api.openalex.org/authors?filter=orcid:" +
+      encodeURIComponent(candidates[i]) +
+      "&select=id,orcid,cited_by_count&per-page=1";
+
+    var res = UrlFetchApp.fetch(url, { muteHttpExceptions: true });
+    if (res.getResponseCode() !== 200) continue;
+
+    var data = JSON.parse(res.getContentText());
+    if (data && data.results && data.results.length > 0) {
+      var author = data.results[0];
+      if (author && typeof author.cited_by_count === "number") return author.cited_by_count;
+    }
+  }
+
+  throw new Error("ORCID não encontrado no OpenAlex (ou API indisponível).");
+}
+
+// --- GATILHO DIÁRIO DO ROBÔ COMPLETO (1x por dia) ---
+function instalarGatilhoRoboDiario() {
+  var fn = "preencherDadosFaltantes";
+
+  // Remove gatilhos duplicados dessa função
+  var triggers = ScriptApp.getProjectTriggers();
+  for (var i = 0; i < triggers.length; i++) {
+    if (triggers[i].getHandlerFunction() === fn) {
+      ScriptApp.deleteTrigger(triggers[i]);
+    }
+  }
+
+  // Cria um gatilho diário (1x por dia)
+  ScriptApp.newTrigger(fn)
+    .timeBased()
+    .everyDays(1)
+    .create();
 }
